@@ -19,12 +19,12 @@ r = redis.Redis(host=os.environ.get('REDIS_HOST', 'localhost'), port=6379, db=0)
 minio_host = os.environ.get('MINIO_HOST', 'localhost:9000')
 minio_client = Minio(minio_host, access_key='rootuser', secret_key='rootpass123', secure=False)
 
-# Create buckets if they don't exist
+# set up buckets if they dont already exist
 for bucket in ['queue', 'output']:
     if not minio_client.bucket_exists(bucket):
         minio_client.make_bucket(bucket)
 
-r.lpush(LOG_KEY, 'Worker started. Waiting for jobs...')
+r.lpush(LOG_KEY, 'worker is up, waiting for stuff to do')
 
 while True:
     job_data = r.brpop(QUEUE_KEY, timeout=5)
@@ -49,21 +49,21 @@ while True:
         os.path.abspath(mp3_path)
     ]
     try:
-        r.lpush(LOG_KEY, f'Running Demucs: {" ".join(demucs_cmd)}')
+        r.lpush(LOG_KEY, f'running demucs on {songhash}')
         subprocess.run(demucs_cmd, check=True)
 
 
-        # Upload tracks to Minio
+        # grab the separated tracks and throw them in minio
         track_dir = os.path.join(OUTPUT_DIR, model, songhash)
         for track_file in glob.glob(os.path.join(track_dir, '*.wav')):
             track_name = os.path.basename(track_file).replace('.wav', '.mp3')
             object_name = f'{songhash}-{track_name}'
             minio_client.fput_object('output', object_name, track_file)
-            r.lpush(LOG_KEY, f'Uploaded {object_name} to Minio')
+            r.lpush(LOG_KEY, f'uploaded {object_name}')
         
-        # Clean up local files
+        # cleanup so we dont fill up disk
         os.remove(mp3_path)
         shutil.rmtree(track_dir, ignore_errors=True)
-        r.lpush(LOG_KEY, f'Job {songhash} processed and tracks uploaded.')
+        r.lpush(LOG_KEY, f'done with {songhash}')
     except Exception as e:
-        r.lpush(LOG_KEY, f'Error processing job {songhash}: {e}')
+        r.lpush(LOG_KEY, f'something went wrong with {songhash}: {e}')

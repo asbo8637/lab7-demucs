@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: rest
-          image: rest-server:latest
-          imagePullPolicy: Never
+          image: asbo8637/rest-server:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           env:
