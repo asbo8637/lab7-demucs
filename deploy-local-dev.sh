@@ -15,11 +15,17 @@ kubectl apply -f rest/rest-deployment.yaml
 kubectl apply -f rest/rest-service.yaml
 kubectl apply -f logs/logs-deployment.yaml
 kubectl apply -f worker/worker-deployment.yaml
-kubectl apply -f minio/minio-external-service.yaml
+kubectl apply -f minio/minio-deployment.yaml
 
+# Wait for pods to start
+echo "Sleeping for my little pods to start"
+sleep 60
 
 kubectl port-forward --address 0.0.0.0 service/redis 6379:6379 &
 
-# If you're using minio from the kubernetes tutorial this will forward those
-kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-proj 9000:9000 &
-kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-proj 9001:9001 &
+# Forward minio API and console
+kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-service 9000:9000 &
+kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-service 9001:9001 &
+
+# Forward REST service
+kubectl port-forward --address 0.0.0.0 service/rest-service 5000:5000 &
